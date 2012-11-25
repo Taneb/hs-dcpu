@@ -20,12 +20,7 @@ import Data.Sequence (Seq)
 import Data.Typeable
 import Data.Word
 
-data RegCode = A | B | C | X | Y | Z | I | J | SP | PC | EX | IA | N deriving (Eq, Ord, Enum)
-
-instance Ix RegCode where
-  range = uncurry enumFromTo
-  index (a, b) x = fromJust . lookup x $ zip [a..b] [0..]
-  inRange (a, b) x = x `elem` [a..b]
+data RegCode = A | B | C | X | Y | Z | I | J | SP | PC | EX | IA | N deriving (Eq, Ord, Enum, Ix)
 
 data DCPU = DCPU
   {_dcpuRam :: UArray Word16 Word16
