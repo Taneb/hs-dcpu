@@ -8,23 +8,20 @@ module DCPU.Types where
 import Control.Arrow
 import Control.Exception
 import Control.Lens
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer
+import Control.Monad.Writer.Strict
 
-import Data.Array.Lens
-import Data.Array.Unboxed (Ix(..), UArray)
 import Data.Function.Pointless
-import Data.Maybe
 import Data.Sequence (Seq)
 import Data.Typeable
 import Data.Word
 
-data RegCode = A | B | C | X | Y | Z | I | J | SP | PC | EX | IA | N deriving (Eq, Ord, Enum, Ix)
+data RegCode = A | B | C | X | Y | Z | I | J | SP | PC | EX | IA | N deriving (Eq, Ord, Enum)
 
 data DCPU = DCPU
-  {_dcpuRam :: UArray Word16 Word16
-  ,_dcpuRegisters :: UArray RegCode Word16
+  {_dcpuRam :: Word16 -> Word16
+  ,_dcpuRegisters :: RegCode -> Word16
   ,_dcpuIsInterruptQueueing :: Bool   
   ,_dcpuInterruptQueue :: Seq Word16
   ,_dcpuHardware :: Seq Hardware -- maybe should be Map Word16 Hardware?
@@ -46,7 +43,7 @@ type DCPUM a = StateT DCPU (MaybeT (WriterT (Sum Integer) IO)) a
 
 makeLenses ''DCPU
 
-dcpuLens :: Either RegCode Word16 -> Simple Lens DCPU Word16
+dcpuLens :: Either RegCode Word16 -> Lens' DCPU Word16
 dcpuLens = dcpuRegisters .: ix ||| dcpuRam .: ix
 
 data DCPUException = DCPUUndefinedOperation | DCPUInterruptOverflow | DCPUSpontaneouslyCombusted deriving (Show, Typeable)

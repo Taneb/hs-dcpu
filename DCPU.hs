@@ -4,9 +4,9 @@ module DCPU where
 import DCPU.Types
 
 import Control.Applicative
-import Control.Arrow
+
 import Control.Exception
-import Control.Lens
+import Control.Lens hiding ((<|))
 import Control.Monad.State
 import Control.Monad.Writer
 
@@ -16,16 +16,15 @@ import Data.Int
 import Data.Sequence
 import Data.Word
 
+import Prelude hiding (length)
+
 memPartA :: Word16 -> DCPUM Word16
 memPartA n | n <= 0x07 = use . dcpuLens . Left . toEnum $ fromIntegral n
            | n <= 0x0f = do
              addr <- use . dcpuLens . Left . toEnum $ fromIntegral (n - 8)
              use . dcpuLens $ Right addr
            | n <= 0x17 = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             offset <- use . dcpuLens $ Right pc
+             offset <- memPartA 0x1f
              addr <- use . dcpuLens . Left . toEnum $ fromIntegral (n - 16)
              use . dcpuLens $ Right (addr + offset)
            | n == 0x18 = do
@@ -36,20 +35,14 @@ memPartA n | n <= 0x07 = use . dcpuLens . Left . toEnum $ fromIntegral n
              sp <- use . dcpuLens $ Left SP
              use . dcpuLens $ Right sp
            | n == 0x1a = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             offset <- use . dcpuLens $ Right pc
+             offset <- memPartA 0x1f
              sp <- use . dcpuLens $ Left SP
              use . dcpuLens $ Right (sp + offset)
            | n == 0x1b = use . dcpuLens $ Left SP
            | n == 0x1c = use . dcpuLens $ Left PC
            | n == 0x1d = use . dcpuLens $ Left EX
            | n == 0x1e = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             addr <- use . dcpuLens $ Right pc
+             addr <- memPartA 0x1f
              use . dcpuLens $ Right addr
            | n == 0x1f = do
              tell (Sum 1)
@@ -64,10 +57,7 @@ memPartB n | n <= 0x07 = let rc = Left . toEnum $ fromIntegral n in (, rc) <$> u
              addr <- use . dcpuLens . Left . toEnum $ fromIntegral (n - 8)
              uses (dcpuLens $ Right addr) (, Right addr)
            | n <= 0x17 = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             offset <- use . dcpuLens $ Right pc
+             offset <- memPartA 0x1f
              addr <- use . dcpuLens . Left . toEnum $ fromIntegral (n - 16)
              uses (dcpuLens . Right $ addr + offset) (, Right (addr + offset))
            | n == 0x18 = do
@@ -78,25 +68,17 @@ memPartB n | n <= 0x07 = let rc = Left . toEnum $ fromIntegral n in (, rc) <$> u
              sp <- use . dcpuLens $ Left SP
              uses (dcpuLens $ Right sp) (, Right sp)
            | n == 0x1a = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             offset <- use . dcpuLens $ Right pc
+             offset <- memPartA 0x1f
              sp <- use . dcpuLens $ Left SP
              uses (dcpuLens $ Right (sp + offset)) (, Right (sp + offset))
            | n == 0x1b = (, Left SP) <$> use (dcpuLens $ Left SP)
            | n == 0x1c = (, Left PC) <$> use (dcpuLens $ Left PC)
            | n == 0x1d = (, Left EX) <$> use (dcpuLens $ Left EX)
            | n == 0x1e = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
-             addr <- use . dcpuLens $ Right pc
+             addr <- memPartA 0x1f
              uses (dcpuLens $ Right addr) (, Right addr)
            | n == 0x1f = do
-             tell (Sum 1)
-             pc <- use . dcpuLens $ Left PC
-             dcpuLens (Left PC) += 1
+             pc <- memPartA 0x1f
              uses (dcpuLens $ Right pc) (, Right pc)
            | otherwise = return (n - 33, Left N)
                          
@@ -188,6 +170,8 @@ step = do
       0x0f -> liftIO $ throwIO DCPUUndefinedOperation
       0x10 -> do
         tell (Sum 2)
+        noOfConnectedDevices <- uses dcpuHardware $ fromIntegral . length 
+        dcpuLens (Left A) .= noOfConnectedDevices
       _ -> liftIO $ throwIO DCPUUndefinedOperation  
     0x01 -> do
       tell (Sum 1)
@@ -205,7 +189,7 @@ step = do
       a <- memPartA acode
       (b, addr) <- memPartB bcode
       dcpuLens addr .= b - a
-      dcpuLens (Left EX) .= if (a > b) then -1 else 0
+      dcpuLens (Left EX) .= if a > b then -1 else 0
     0x04 -> do
       tell (Sum 2)
       a <- memPartA acode
@@ -218,7 +202,7 @@ step = do
     0x05 -> do
       tell (Sum 2)
       a <- fromIntegral <$> memPartA acode :: DCPUM Int16
-      (b, addr) <- first fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
+      (b, addr) <- over _1 fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
       dcpuLens addr .= fromIntegral (b * a)
       let a', b' :: Int32
           a' = fromIntegral a
@@ -241,7 +225,7 @@ step = do
     0x07 -> do
       tell (Sum 3)
       a <- fromIntegral <$> memPartA acode :: DCPUM Int16
-      (b, addr) <- first fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
+      (b, addr) <- over _1 fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
       case a of
         0 -> do
           dcpuLens addr .= 0
@@ -262,7 +246,7 @@ step = do
     0x09 -> do
       tell (Sum 3)
       a <- fromIntegral <$> memPartA acode :: DCPUM Int16
-      (b, addr) <- first fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
+      (b, addr) <- over _1 fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
       dcpuLens addr .= case a of
         0 -> 0
         _ -> fromIntegral (b `rem` a)
@@ -290,7 +274,7 @@ step = do
     0x0e -> do
       tell (Sum 1)
       a <- fromIntegral <$> memPartA acode
-      (b, addr) <- first fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
+      (b, addr) <- over _1 fromIntegral <$> memPartB bcode :: DCPUM (Int16, Either RegCode Word16)
       dcpuLens addr .= fromIntegral (b `shiftR` a)
       dcpuLens (Left EX) .= fromIntegral (fromIntegral b `shiftL` 16 `shiftR` a :: Int32)
     0x0f -> do
@@ -342,7 +326,7 @@ step = do
     0x15 -> do
       tell (Sum 2)
       a <- fromIntegral <$> memPartA acode :: DCPUM Int16
-      (b, _) <- first fromIntegral <$> memPartB bcode
+      (b, _) <- over _1 fromIntegral <$> memPartB bcode
       unless (b > a) $ do
         tell (Sum 1)
         skip <- sizeOfInstruction
@@ -358,7 +342,7 @@ step = do
     0x17 -> do
       tell (Sum 2)
       a <- fromIntegral <$> memPartA acode :: DCPUM Int16
-      (b, _) <- first fromIntegral <$> memPartB bcode
+      (b, _) <- over _1 fromIntegral <$> memPartB bcode
       unless (b < a) $ do
         tell (Sum 1)
         skip <- sizeOfInstruction
