@@ -37,6 +37,7 @@ data Hardware = Hardware
   ,hardwareVersion :: Word16 
   ,hardwareManufacturer :: Word16 
   ,hardwareShoutbox :: Word16 -> DCPUM ()
+  ,hardwareRefresh :: DCPUM ()
   }
 
 type DCPUM a = StateT DCPU (MaybeT (WriterT (Sum Integer) IO)) a
