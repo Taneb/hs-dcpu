@@ -6,7 +6,7 @@ import DCPU.Types
 import Control.Arrow
 import Control.Lens hiding (set)
 import Control.Monad
-import Control.Monad.Writer
+import Control.Monad.State
 
 import Data.Array.MArray
 import Data.Bits
@@ -36,28 +36,30 @@ lem1802 lem = Hardware {
   hardwareID = 0x7349f615,
   hardwareVersion = 0x1802,
   hardwareManufacturer = 0x1c6c8b36,
-  hardwareShoutbox = \n -> case n of
-    0 -> do
-      b <- use (dcpuLens $ Left B)
-      liftIO $ modifyIORef lem (lem1802video .~ b)
-    1 -> do
-      b <- use (dcpuLens $ Left B)
-      liftIO $ modifyIORef lem (lem1802font .~ b)
-    2 -> do
-      b <- use (dcpuLens $ Left B)
-      liftIO $ modifyIORef lem (lem1802palette .~ b)
-    3 -> do
-      b <- use (dcpuLens $ Left B)
-      liftIO $ modifyIORef lem (lem1802borderColour .~ fromIntegral (b .&. 0xf))
-    4 -> do
-      tell (Sum 256)
-      b <- use (dcpuLens $ Left B)
-      zipWithM_ (assign . dcpuLens . Right) [b..] defaultFont
-    5 -> do
-      tell (Sum 16)
-      b <- use (dcpuLens $ Left B)
-      zipWithM_ (assign . dcpuLens . Right) [b..] defaultPalette
-    _ -> return (),
+  hardwareInterrupt = do
+    a <- use $ dcpuLens (Left A)
+    case a of
+      0 -> do
+        b <- use (dcpuLens $ Left B)
+        liftIO $ modifyIORef lem (lem1802video .~ b)
+      1 -> do
+        b <- use (dcpuLens $ Left B)
+        liftIO $ modifyIORef lem (lem1802font .~ b)
+      2 -> do
+        b <- use (dcpuLens $ Left B)
+        liftIO $ modifyIORef lem (lem1802palette .~ b)
+      3 -> do
+        b <- use (dcpuLens $ Left B)
+        liftIO $ modifyIORef lem (lem1802borderColour .~ fromIntegral (b .&. 0xf))
+      4 -> do
+        lift $ modify (+ 256)
+        b <- use (dcpuLens $ Left B)
+        zipWithM_ (assign . dcpuLens . Right) [b..] defaultFont
+      5 -> do
+        lift $ modify (+ 16)
+        b <- use (dcpuLens $ Left B)
+        zipWithM_ (assign . dcpuLens . Right) [b..] defaultPalette
+      _ -> return (),
   hardwareRefresh = do
     f <- liftIO $ fmap lem1802refresh $ readIORef lem
     f lem

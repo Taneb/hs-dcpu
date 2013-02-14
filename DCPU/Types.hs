@@ -10,7 +10,6 @@ import Control.Exception
 import Control.Lens
 import Control.Monad.State.Strict
 import Control.Monad.Trans.Maybe
-import Control.Monad.Writer.Strict
 
 import Data.Function.Pointless
 import Data.Sequence (Seq)
@@ -35,18 +34,18 @@ data DCPU = DCPU
 data Hardware = Hardware
   {hardwareID :: Word32
   ,hardwareVersion :: Word16 
-  ,hardwareManufacturer :: Word16 
-  ,hardwareShoutbox :: Word16 -> DCPUM ()
+  ,hardwareManufacturer :: Word32
+  ,hardwareInterrupt :: DCPUM ()
   ,hardwareRefresh :: DCPUM ()
   }
 
-type DCPUM a = StateT DCPU (MaybeT (WriterT (Sum Integer) IO)) a
+type DCPUM a = StateT DCPU (MaybeT (StateT Integer IO)) a
 
 makeLenses ''DCPU
 
 dcpuLens :: Either RegCode Word16 -> Lens' DCPU Word16
 dcpuLens = dcpuRegisters .: ix ||| dcpuRam .: ix
 
-data DCPUException = DCPUUndefinedOperation | DCPUInterruptOverflow | DCPUSpontaneouslyCombusted deriving (Show, Typeable)
+data DCPUException = DCPUUndefinedOperation | DCPUInterruptOverflow | NoSuchHardware | DCPUSpontaneouslyCombusted deriving (Show, Typeable)
 
 instance Exception DCPUException
