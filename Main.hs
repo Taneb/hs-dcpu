@@ -16,7 +16,6 @@ import Foreign
 
 import Graphics.UI.Gtk
 
-import System.Environment
 import System.IO
 
 loadDCPUmem :: FilePath -> IO (Vector Word16)

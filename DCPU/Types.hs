@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -Wall #-}
 module DCPU.Types where
@@ -46,6 +47,6 @@ makeLenses ''DCPU
 dcpuLens :: Either RegCode Word16 -> Lens' DCPU Word16
 dcpuLens = dcpuRegisters .: ix ||| dcpuRam .: ix
 
-data DCPUException = DCPUUndefinedOperation | DCPUInterruptOverflow | NoSuchHardware | DCPUSpontaneouslyCombusted deriving (Show, Typeable)
+data DCPUException = DCPUUndefinedOperation Word16 | DCPUInterruptOverflow | NoSuchHardware | DCPUSpontaneouslyCombusted deriving (Show, Typeable)
 
 instance Exception DCPUException

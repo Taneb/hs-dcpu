@@ -133,7 +133,7 @@ step = do
       acode = op `shiftR` 10
   case opcode of
     0x00 -> case bcode of
-      0x00 -> liftIO $ throwIO DCPUUndefinedOperation -- reserved for future expansion
+      0x00 -> liftIO . throwIO $ DCPUUndefinedOperation opcode -- reserved for future expansion
       0x01 -> do
         lift $ modify (+ 3)
         a <- memPartA acode
@@ -142,12 +142,12 @@ step = do
         sp <- use . dcpuLens $ Left SP
         dcpuLens (Right sp) .= pc1
         dcpuLens (Left PC) .= a
-      0x02 -> liftIO $ throwIO DCPUUndefinedOperation
-      0x03 -> liftIO $ throwIO DCPUUndefinedOperation
-      0x04 -> liftIO $ throwIO DCPUUndefinedOperation
-      0x05 -> liftIO $ throwIO DCPUUndefinedOperation
-      0x06 -> liftIO $ throwIO DCPUUndefinedOperation
-      0x07 -> liftIO $ throwIO DCPUUndefinedOperation
+      0x02 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x03 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x04 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x05 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x06 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x07 -> liftIO . throwIO $ DCPUUndefinedOperation opcode
       0x08 -> do
         lift $ modify (+ 4)
         a <- memPartA acode
@@ -176,9 +176,9 @@ step = do
         lift $ modify (+ 2)
         a <- memPartA acode
         dcpuIsInterruptQueueing .= (a /= 0)
-      0x0d -> liftIO $ throwIO DCPUUndefinedOperation
-      0x0e -> liftIO $ throwIO DCPUUndefinedOperation
-      0x0f -> liftIO $ throwIO DCPUUndefinedOperation
+      0x0d -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x0e -> liftIO . throwIO $ DCPUUndefinedOperation opcode
+      0x0f -> liftIO . throwIO $ DCPUUndefinedOperation opcode
       0x10 -> do
         lift $ modify (+ 2)
         noOfConnectedDevices <- uses dcpuHardware $ fromIntegral . length 
@@ -207,7 +207,7 @@ step = do
         case thisDevice of
           Nothing -> return ()
           Just device -> hardwareInterrupt device
-      _ -> liftIO $ throwIO DCPUUndefinedOperation
+      _ -> liftIO . throwIO $ DCPUUndefinedOperation opcode
     0x01 -> do
       lift $ modify (+ 1)
       a <- memPartA acode
@@ -382,8 +382,8 @@ step = do
         lift $ modify (+ 1)
         skip <- sizeOfInstruction
         dcpuLens (Left PC) += skip
-    0x18 -> liftIO $ throwIO DCPUUndefinedOperation -- spec is eerily missing
-    0x19 -> liftIO $ throwIO DCPUUndefinedOperation -- it's like someone stole these instructions from Notch's mind
+    0x18 -> liftIO . throwIO $ DCPUUndefinedOperation opcode -- spec is eerily missing
+    0x19 -> liftIO . throwIO $ DCPUUndefinedOperation opcode -- it's like someone stole these instructions from Notch's mind
     0x1a -> do
       lift $ modify (+ 3)
       a <- memPartA acode
@@ -398,8 +398,8 @@ step = do
       c <- use . dcpuLens $ Left EX
       dcpuLens addr .= b - a + c
       dcpuLens (Left EX) .= if b + c < a then -1 else 0
-    0x1c -> liftIO $ throwIO DCPUUndefinedOperation -- the spec theif strikes again!
-    0x1d -> liftIO $ throwIO DCPUUndefinedOperation -- someone call the police!
+    0x1c -> liftIO . throwIO $ DCPUUndefinedOperation opcode -- the spec theif strikes again!
+    0x1d -> liftIO . throwIO $ DCPUUndefinedOperation opcode -- someone call the police!
     0x1e -> do
       lift $ modify (+ 2)
       a <- memPartA acode
@@ -414,7 +414,7 @@ step = do
       dcpuLens addr .= a
       dcpuLens (Left I) -= 1
       dcpuLens (Left J) -= 1
-    _ -> liftIO $ throwIO DCPUUndefinedOperation
+    _ -> liftIO . throwIO $ DCPUUndefinedOperation opcode
   hw <- use dcpuHardware
   mapM_ hardwareRefresh hw
 
